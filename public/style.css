@@ -1,0 +1,231 @@
+/* 로그인 화면 전용 스타일 (유지) */
+body {
+  font-family: Arial, sans-serif;
+  background-color: #f5f5f5;
+  margin: 0;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+#login-screen {
+  background: white;
+  padding: 30px 40px;
+  border-radius: 10px;
+  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+  width: 300px;
+}
+
+h2 {
+  text-align: center;
+}
+
+.form-row {
+  display: flex;
+  align-items: center;
+  margin-top: 15px;
+}
+
+.form-row label {
+  width: 70px;
+  font-weight: bold;
+}
+
+.form-row input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+}
+
+button {
+  margin-top: 20px;
+  width: 100%;
+  padding: 10px 0;
+  border: none;
+  background-color: #4caf50;
+  color: white;
+  font-size: 16px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.error {
+  color: red;
+  margin-top: 10px;
+  text-align: center;
+}
+
+/* 메인 UI 스타일 */
+#main-ui {
+  width: 100%;
+  max-width: 500px;
+  aspect-ratio: 9 / 16;
+  margin: 0 auto;
+  padding: 20px;
+  background: white;
+  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+  height: 90vh;
+}
+
+.top-bar, .controls {
+  background-color: #f9f9f9;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+}
+
+.controls label {
+  font-weight: bold;
+  margin-right: 10px;
+}
+
+#class-select {
+  padding: 6px 12px;
+  font-size: 16px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+}
+
+#refresh-button {
+  background-color: #1976d2;
+  color: white;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  max-width: 120px;
+}
+
+#refresh-button:hover {
+  background-color: #125bb5;
+}
+
+#current-time {
+  font-size: 16px;
+  font-weight: bold;
+}
+
+#seat-layout {
+  background-color: #f0f0f0;
+  border: 1px solid #ccc;
+  border-radius: 10px;
+  padding: 15px;
+  display: grid;
+  gap: 10px;
+  justify-content: center;
+}
+
+.seat {
+  aspect-ratio: 1 / 1;
+  background-color: #eee;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.seat.available {
+  background-color: #7ed957;
+}
+
+.seat.reserved {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.seat.own {
+  background-color: #f4d35e;
+}
+
+.user-info {
+  background-color: #fafafa;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.user-info p {
+  margin: 0;
+  font-size: 18px;
+}
+
+#cancel-reservation, #logout-button {
+  padding: 8px 20px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  color: white;
+}
+
+#cancel-reservation {
+  background-color: #e53935;
+}
+
+#cancel-reservation:disabled {
+  background-color: #bcbcbc;
+  cursor: not-allowed;
+}
+
+#logout-button {
+  background-color: #1976d2;
+}
+
+.popup {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.4);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.popup-content {
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
+  width: 300px;
+  text-align: center;
+}
+
+.popup-content button {
+  margin: 10px 5px 0 5px;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+#seat-popup-confirm {
+  background-color: #4caf50;
+  color: white;
+}
+
+#seat-popup-close {
+  background-color: #999;
+  color: white;
+}

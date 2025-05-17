@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>교실 좌석 예약</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="login-screen">
+    <h2>로그인</h2>
+    <form id="login-form">
+      <div class="form-row">
+        <label for="student-id">학번</label>
+        <input type="text" id="student-id" required />
+      </div>
+      <div class="form-row">
+        <label for="password">비밀번호</label>
+        <input type="password" id="password" required />
+      </div>
+      <button type="submit">로그인</button>
+      <div class="error" id="login-error"></div>
+    </form>
+  </div>
+
+  <div id="main-ui" style="display: none">
+    <div class="top-bar">
+      <span id="current-time"></span>
+      <button id="refresh-button">새로고침</button>
+    </div>
+    <div class="controls">
+      <select id="class-select"></select>
+      <p id="current-period"></p>
+    </div>
+    <div id="seat-layout"></div>
+    <div class="user-info">
+      <p><strong>사용자:</strong> <span id="user-name"></span></p>
+      <p><strong>예약정보:</strong> <span id="reservation-info"></span></p>
+      <button id="cancel-reservation">예약 취소</button>
+      <button id="logout-button">로그아웃</button>
+    </div>
+  </div>
+
+  <div id="seat-popup" class="popup" style="display: none">
+    <div class="popup-content">
+      <p id="seat-popup-info"></p>
+      <button id="seat-popup-confirm">확인</button>
+      <button id="seat-popup-close">닫기</button>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

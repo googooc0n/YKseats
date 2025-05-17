@@ -1,15 +1,27 @@
-param(
-  [string]$Message = "Auto commit"
-)
+@echo off
+REM =============================================
+REM Auto-commit & push all changes batch script
+REM Usage: Double-click or run from command line
+REM =============================================
 
-# 프로젝트 루트로 이동 (스크립트가 있는 곳)
-Set-Location -Path $PSScriptRoot
+:: Change to script directory (project root)
+cd /d "%~dp0"
 
-# 모든 변경사항 스테이징
+:: Add current directory to git safe list (handle dubious ownership)
+git config --global --add safe.directory "%~dp0"
+
+:: Stage all changes
+echo Staging all changes...
 git add .
 
-# 커밋
-git commit -m $Message
+:: Commit with timestamp message
+echo Committing changes...
+git commit -m "Auto commit %DATE% %TIME%"
 
-# 푸시 (main 브랜치에)
-git push -u origin main
+:: Push to main branch
+echo Pushing to origin main...
+git push origin main
+
+echo.
+echo Done. Press any key to exit.
+pause

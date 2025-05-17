@@ -216,7 +216,7 @@ app.post('/api/cancel', requireToken, async(req,res) => {
   await broadcastUpdate(); res.json({success:true});
 });
 
-app.get('/api/download-log', requireToken, (req, res) => {
+app.get('/api/download-log', (req, res) => {
   const filePath = path.join(__dirname, 'data', 'log.xlsx');
   res.download(filePath, 'log.xlsx', err => {
     if (err) {

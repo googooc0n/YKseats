@@ -204,17 +204,23 @@ app.post('/api/reserve', requireToken, async(req,res) => {
   await broadcastUpdate(); res.json({success:true});
 });
 // 취소
-app.post('/api/cancel', requireToken, async(req,res) => {
-  const now = new Date();
-  const nowSec = now.getHours()*3600 + now.getMinutes()*60 + now.getSeconds();
-  const periodObj = getCurrentPeriod();
-  if(periodObj){
-    const startSec = timeStringToSec(periodObj.시작시간);
-    if(nowSec> startSec+20*60) return res.json({success:false,message:'취소 제한 시간이 지났습니다.'});
+app.post('/api/cancel', requireToken, async (req, res) => {
+  const rows = await dbAll('SELECT class FROM reservations WHERE id = ?', [req.user.id]);
+  if (!rows.length) return res.json({ success: false, message: '예약 정보가 없습니다.' });
+
+  const cls = rows[0].class; // 실제 예약된 반
+  const nowMinutes = new Date().getHours() * 60 + new Date().getMinutes();
+  const period = getCurrentPeriod();
+  if (period) {
+    const [sh, sm] = period.시작시간.split(':').map(Number);
+    if (nowMinutes > sh * 60 + sm + 20)
+      return res.json({ success: false, message: '취소 제한 시간이 지났습니다.' });
   }
-  await dbRun('DELETE FROM reservations WHERE id=? AND class=?',[req.user.id,req.body.class]);
-  await broadcastUpdate(); res.json({success:true});
+
+  await dbRun('DELETE FROM reservations WHERE id = ? AND class = ?', [req.user.id, cls]);
+  res.json({ success: true });
 });
+
 
 app.get('/api/download-log', (req, res) => {
   const filePath = path.join(__dirname, 'data', 'log.xlsx');

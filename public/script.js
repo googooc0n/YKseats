@@ -37,8 +37,8 @@ function updateClock() {
     hour: '2-digit', minute: '2-digit'
   });
 }
-setInterval(updateClock, 60000);
 updateClock();
+setInterval(updateClock, 60000);
 
 // 토큰 관리
 function getToken() {

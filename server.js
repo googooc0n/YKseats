@@ -8,7 +8,7 @@ const sqlite3 = require('sqlite3').verbose();
 const { promisify } = require('util');
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 const SECRET = 'jwt-secret-key';
 
 // 데이터 디렉토리 및 파일 경로

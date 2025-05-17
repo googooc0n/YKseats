@@ -216,4 +216,14 @@ app.post('/api/cancel', requireToken, async(req,res) => {
   await broadcastUpdate(); res.json({success:true});
 });
 
+app.get('/api/download-log', requireToken, (req, res) => {
+  const filePath = path.join(__dirname, 'data', 'log.xlsx');
+  res.download(filePath, 'log.xlsx', err => {
+    if (err) {
+      console.error('Log download error:', err);
+      res.status(500).send('다운로드 중 오류 발생');
+    }
+  });
+});
+
 app.listen(PORT, () => console.log(`✅ 서버 실행: http://localhost:${PORT}`));

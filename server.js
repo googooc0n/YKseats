@@ -169,7 +169,7 @@ app.post('/api/login', (req, res) => {
   const users = loadXlsx(USERS_FILE);
   const u = users.find(u => String(u['학번']).trim()===id && String(u['비밀번호']).trim()===pw);
   if (!u) return res.json({success:false});
-  const token = jwt.sign({id: u['학번'], name: u['이름']||''}, SECRET, {expiresIn:'6h'});
+  const token = jwt.sign({id: u['학번'], name: u['이름']||''}, SECRET, {expiresIn:'1Y'});
   res.json({success:true, token, user:{id:u['학번'], name:u['이름']||''}});
 });
 // 로그인 상태

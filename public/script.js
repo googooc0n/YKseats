@@ -32,13 +32,37 @@ let evtSource = null;
 // 시계 업데이트
 function updateClock() {
   const now = new Date();
-  UI.time.textContent = now.toLocaleString('ko-KR', {
-    year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit'
+  const date = now.toLocaleDateString('ko-KR', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
   });
+  const time = now.toLocaleTimeString('ko-KR', {
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+
+  // 자동 줄바꿈을 유도하되 "오\n후" 분리 방지
+  UI.time.innerHTML = `${date} <wbr>${time}`;
 }
+
+// 최초 즉시 실행
 updateClock();
-setInterval(updateClock, 60000);
+
+// 정확한 다음 정시에 맞춰 갱신하도록 타이머 조정
+function startAccurateClock() {
+  const now = new Date();
+  const msToNextMinute =
+    60000 - (now.getSeconds() * 1000 + now.getMilliseconds());
+
+  // 다음 분의 00초에 맞춰 updateClock 실행
+  setTimeout(() => {
+    updateClock();
+    setInterval(updateClock, 60000); // 이후 매 분마다 갱신
+  }, msToNextMinute);
+}
+
+startAccurateClock();
 
 // 토큰 관리
 function getToken() {

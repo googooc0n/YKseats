@@ -1,0 +1,10 @@
+# Google API 비공개 키
+google-credentials.json
+
+# Google Drive 임시 로그파일
+temp-log.xlsx
+
+# Node.js 관련
+node_modules/
+.env
+npm-debug.log

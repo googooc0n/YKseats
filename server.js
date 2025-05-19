@@ -1,10 +1,3 @@
-// 환경변수로부터 키 파일 쓰기
-if (process.env.GOOGLE_CREDENTIALS_JSON) {
-  const fs = require('fs');
-  fs.writeFileSync('google-credentials.json', process.env.GOOGLE_CREDENTIALS_JSON);
-}
-
-// 기본 모듈 로딩
 const express = require('express');
 const bodyParser = require('body-parser');
 const xlsx = require('xlsx');
@@ -18,19 +11,16 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const SECRET = 'jwt-secret-key';
 
-// 구글 드라이브 연동 모듈 (키 파일이 생성된 뒤에 require)
-const { downloadLog, uploadLog } = require('./googleDrive');
-const TMP_LOG = path.join(__dirname, 'temp-log.xlsx');
+// 데이터 디렉토리 및 파일 경로
+const DATA_DIR    = path.join(__dirname, 'data');
+const USERS_FILE  = path.join(DATA_DIR, 'users.xlsx');
+const LAYOUT_FILE = path.join(DATA_DIR, 'layout.xlsx');
+const TIME_FILE   = path.join(DATA_DIR, 'time.xlsx');
+const CONFIG_FILE = path.join(DATA_DIR, 'config.json');
+const LOG_FILE    = path.join(DATA_DIR, 'log.xlsx');
+const DB_FILE     = path.join(DATA_DIR, 'reservation.db');
 
-// 데이터 경로 설정
-const DATA_DIR     = path.join(__dirname, 'data');
-const USERS_FILE   = path.join(DATA_DIR, 'users.xlsx');
-const LAYOUT_FILE  = path.join(DATA_DIR, 'layout.xlsx');
-const TIME_FILE    = path.join(DATA_DIR, 'time.xlsx');
-const CONFIG_FILE  = path.join(DATA_DIR, 'config.json');
-const DB_FILE      = path.join(DATA_DIR, 'reservation.db');
-
-// SQLite 초기화
+// SQLite 연결 및 프라미스화
 const db    = new sqlite3.Database(DB_FILE);
 const dbAll = promisify(db.all.bind(db));
 const dbRun = promisify(db.run.bind(db));
@@ -38,9 +28,7 @@ const dbRun = promisify(db.run.bind(db));
 app.use(bodyParser.json());
 app.use(express.static('public'));
 
-// ----------------------------------------
-// 유틸 함수들
-// ----------------------------------------
+// 엑셀 유틸
 function loadXlsx(file) {
   if (!fs.existsSync(file)) return [];
   const wb = xlsx.readFile(file);
@@ -52,16 +40,22 @@ function saveXlsx(file, data) {
   xlsx.utils.book_append_sheet(wb, ws, 'Sheet1');
   xlsx.writeFile(wb, file);
 }
+
+// 시간 변환
 function timeStringToSec(str) {
   const [h, m] = str.split(':').map(Number);
   return h * 3600 + m * 60;
 }
+
+// 오늘 요일 시트
 function getTodaySchedule() {
   const days = ['일요일','월요일','화요일','수요일','목요일','금요일','토요일'];
   const wb    = xlsx.readFile(TIME_FILE);
   const sheet = wb.Sheets[days[new Date().getDay()]];
   return sheet ? xlsx.utils.sheet_to_json(sheet) : [];
 }
+
+// 현재 교시 (종료시간 비교용: -1초)
 function getCurrentPeriod() {
   const now    = new Date();
   const nowSec = now.getHours()*3600 + now.getMinutes()*60 + now.getSeconds();
@@ -75,6 +69,8 @@ function getCurrentPeriod() {
   }
   return null;
 }
+
+// 예약 가능 검사 (수업 간 공백 허용 포함)
 function isReservationAllowed() {
   try {
     const cfg      = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf-8'));
@@ -91,12 +87,14 @@ function isReservationAllowed() {
       const endSec     = timeStringToSec(row['종료시간']);
       const allowStart = startSec - 600;
 
+      // 수업 시작 10분 전 ~ 종료 직전
       if (nowSec >= allowStart && nowSec <= endSec - 1) {
         return true;
       }
-      const nextRow = schedule[i + 1];
-      if (nextRow) {
-        const nextStartSec = timeStringToSec(nextRow['시작시간']);
+      // 교시 사이 공백 시간
+      const next = schedule[i + 1];
+      if (next) {
+        const nextStartSec = timeStringToSec(next['시작시간']);
         if (nowSec >= endSec && nowSec < nextStartSec - 600) {
           return true;
         }
@@ -108,55 +106,29 @@ function isReservationAllowed() {
   }
 }
 
-// ----------------------------------------
-// 로그 기록 및 초기화
-// ----------------------------------------
+// 로그 기록 및 DB 초기화
 async function clearAndLog(oldPeriod) {
   const rows = await dbAll('SELECT id, class, seat FROM reservations');
-  console.log('[clearAndLog] 예약 수:', rows.length);
-  if (!rows.length) {
-    console.log('[clearAndLog] 삭제할 예약 없음');
-    return;
-  }
+  if (!rows.length) return;
 
-  const today = new Date().toISOString().split('T')[0];
-  let uploadSucceeded = false;
+  const today   = new Date().toISOString().split('T')[0];
+  const logData = loadXlsx(LOG_FILE);
 
-  try {
-    console.log('[clearAndLog] 다운로드 시작');
-    await downloadLog(TMP_LOG);
-    console.log('[clearAndLog] 다운로드 완료');
+  const entries = rows.map(r => ({
+    id:     r.id,
+    date:   today,
+    period: oldPeriod || '',
+    class:  r.class,
+    seat:   r.seat
+  }));
 
-    console.log('[clearAndLog] 로그 합치기');
-    const logData = loadXlsx(TMP_LOG);
-    const entries = rows.map(r => ({
-      id:     r.id,
-      date:   today,
-      period: oldPeriod || '',
-      class:  r.class,
-      seat:   r.seat
-    }));
-    saveXlsx(TMP_LOG, logData.concat(entries));
-    console.log('[clearAndLog] 로컬 저장 완료');
-
-    console.log('[clearAndLog] 업로드 시작');
-    await uploadLog(TMP_LOG);
-    uploadSucceeded = true;
-    console.log('[clearAndLog] 업로드 완료');
-  } catch (err) {
-    console.error('[clearAndLog] 오류 발생:', err);
-  } finally {
-    console.log('[clearAndLog] 예약 삭제 시작');
-    await dbRun('DELETE FROM reservations');
-    console.log(`[clearAndLog] 예약 삭제 완료 (업로드 성공: ${uploadSucceeded})`);
-  }
+  saveXlsx(LOG_FILE, logData.concat(entries));
+  await dbRun('DELETE FROM reservations');
 }
 
-// ----------------------------------------
-// JWT 인증
-// ----------------------------------------
+// JWT 검증
 function verifyToken(req) {
-  let token;
+  let token = null;
   const auth = req.headers['authorization'];
   if (auth?.startsWith('Bearer ')) token = auth.split(' ')[1];
   else if (req.query.token) token = req.query.token;
@@ -171,12 +143,10 @@ function requireToken(req, res, next) {
   next();
 }
 
-// ----------------------------------------
-// SSE (실시간 업데이트)
-// ----------------------------------------
+// SSE 전송
 const sseClients = [];
 async function sendUpdate(client) {
-  const {res, className, userId} = client;
+  const { res, className, userId } = client;
   const wb    = xlsx.readFile(LAYOUT_FILE);
   const sheet = wb.Sheets[className];
   const layout = sheet ? xlsx.utils.sheet_to_json(sheet, {header:1}) : [];
@@ -192,37 +162,38 @@ async function sendUpdate(client) {
 async function broadcastUpdate() {
   for (const c of sseClients) {
     try { await sendUpdate(c); }
-    catch(err) { console.error('[broadcastUpdate] 오류:', err); }
+    catch (err) { console.error('[broadcastUpdate] 오류:', err); }
   }
 }
 
-// ----------------------------------------
-// 교시 변경 감지 & 초기화
-// ----------------------------------------
+// 교시 변경 감지 및 초기화
 let lastPeriod = null;
 setInterval(async () => {
   try {
     const periodObj = getCurrentPeriod();
-    const current = periodObj ? periodObj.교시 : null;
+    const current   = periodObj ? periodObj.교시 : null;
+
     if (lastPeriod !== null && current !== lastPeriod) {
-      console.log(`[교시 변경] ${lastPeriod} → ${current}`);
-      await clearAndLog(lastPeriod);
+      const old = lastPeriod;
+      lastPeriod = current;
+      console.log(`[교시 변경] ${old} → ${current}`);
+      await clearAndLog(old);
+    } else {
+      lastPeriod = current;
     }
-    lastPeriod = current;
+
     await broadcastUpdate();
   } catch (err) {
     console.error('[정기작업] 오류 발생:', err);
   }
 }, 10000);
 
-// ----------------------------------------
-// API 라우트
-// ----------------------------------------
+// SSE endpoint
 app.get('/api/seat-updates', requireToken, (req, res) => {
   const className = req.query.class;
   res.writeHead(200, {
-    'Content-Type': 'text/event-stream',
-    'Cache-Control':  'no-cache',
+    'Content-Type':  'text/event-stream',
+    'Cache-Control':   'no-cache',
     Connection:       'keep-alive'
   });
   res.write('\n');
@@ -234,28 +205,35 @@ app.get('/api/seat-updates', requireToken, (req, res) => {
   });
 });
 
+// 로그인
 app.post('/api/login', (req, res) => {
-  const {id, pw} = req.body;
+  const { id, pw } = req.body;
   const users = loadXlsx(USERS_FILE);
-  const u = users.find(u => String(u['학번']).trim()===id && String(u['비밀번호']).trim()===pw);
-  if (!u) return res.json({success:false});
-  const token = jwt.sign({id: u['학번'], name: u['이름']||''}, SECRET, {expiresIn:'1y'});
-  res.json({success:true, token, user:{id:u['학번'], name:u['이름']||''}});
+  const u = users.find(u =>
+    String(u['학번']).trim() === id &&
+    String(u['비밀번호']).trim() === pw
+  );
+  if (!u) return res.json({ success:false });
+  const token = jwt.sign({ id: u['학번'], name: u['이름']||'' }, SECRET, { expiresIn:'1y' });
+  res.json({ success:true, token, user:{ id:u['학번'], name:u['이름']||'' }});  
 });
 
+// 로그인 상태 체크
 app.get('/api/check-login', requireToken, (req, res) =>
-  res.json({success:true, user:req.user})
+  res.json({ success:true, user:req.user })
 );
 
+// 반 목록
 app.get('/api/class-list', (req, res) => {
   try {
     const wb = xlsx.readFile(LAYOUT_FILE);
-    res.json({classes: wb.SheetNames});
+    res.json({ classes: wb.SheetNames });
   } catch {
-    res.json({classes: []});
+    res.json({ classes: [] });
   }
 });
 
+// 동기식 좌석 조회
 app.get('/api/seats', requireToken, async (req, res) => {
   const periodObj = getCurrentPeriod();
   const className = req.query.class;
@@ -268,24 +246,26 @@ app.get('/api/seats', requireToken, async (req, res) => {
     reservedBy: classRows.find(r=>r.seat===name)?.id || null
   }));
   const reservation = (await dbAll('SELECT id,class,seat FROM reservations WHERE id=?',[req.user.id]))[0] || null;
-  res.json({layout, seats, reservation, period: periodObj});
+  res.json({ layout, seats, reservation, period: periodObj });
 });
 
+// 예약
 app.post('/api/reserve', requireToken, async (req, res) => {
-  if (!isReservationAllowed()) return res.json({success:false, message:'현재 예약 불가'});
-  const {class:cls, seat} = req.body;
+  if (!isReservationAllowed()) return res.json({ success:false, message:'현재 예약 불가' });
+  const { class:cls, seat } = req.body;
   const ex   = await dbAll('SELECT 1 FROM reservations WHERE class=? AND seat=?',[cls,seat]);
   const self = await dbAll('SELECT 1 FROM reservations WHERE id=?',[req.user.id]);
-  if (ex.length)   return res.json({success:false,message:'이미 예약된 자리입니다.'});
-  if (self.length) return res.json({success:false,message:'이미 예약한 좌석이 있습니다.'});
+  if (ex.length)   return res.json({ success:false, message:'이미 예약된 자리입니다.' });
+  if (self.length) return res.json({ success:false, message:'이미 예약한 좌석이 있습니다.' });
   await dbRun('INSERT INTO reservations(id,class,seat) VALUES(?,?,?)',[req.user.id,cls,seat]);
   await broadcastUpdate();
-  res.json({success:true});
+  res.json({ success:true });
 });
 
+// 취소
 app.post('/api/cancel', requireToken, async (req, res) => {
   const rows = await dbAll('SELECT class FROM reservations WHERE id = ?', [req.user.id]);
-  if (!rows.length) return res.json({ success: false, message: '예약 정보가 없습니다.' });
+  if (!rows.length) return res.json({ success:false, message:'예약 정보가 없습니다.' });
 
   const cls = rows[0].class;
   const nowMinutes = new Date().getHours()*60 + new Date().getMinutes();
@@ -293,11 +273,22 @@ app.post('/api/cancel', requireToken, async (req, res) => {
   if (period) {
     const [sh, sm] = period.시작시간.split(':').map(Number);
     if (nowMinutes > sh*60 + sm + 20)
-      return res.json({ success: false, message: '취소 제한 시간이 지났습니다.' });
+      return res.json({ success:false, message:'취소 제한 시간이 지났습니다.' });
   }
 
   await dbRun('DELETE FROM reservations WHERE id = ? AND class = ?', [req.user.id, cls]);
-  res.json({ success: true });
+  res.json({ success:true });
+});
+
+// 로그 다운로드 (복원된 엔드포인트)
+app.get('/api/download-log', (req, res) => {
+  const filePath = path.join(__dirname, 'data', 'log.xlsx');
+  res.download(filePath, 'log.xlsx', err => {
+    if (err) {
+      console.error('Log download error:', err);
+      res.status(500).send('다운로드 중 오류 발생');
+    }
+  });
 });
 
 app.listen(PORT, () => console.log(`✅ 서버 실행: http://localhost:${PORT}`));

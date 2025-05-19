@@ -74,11 +74,39 @@ function isReservationAllowed() {
   try {
     const cfg = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf-8'));
     if (cfg.allowAnytimeReservation) return true;
-    return !!getCurrentPeriod();
+
+    const nowSec = new Date().getHours() * 3600 + new Date().getMinutes() * 60 + new Date().getSeconds();
+    const schedule = getTodaySchedule();
+
+    for (let i = 0; i < schedule.length; i++) {
+      const row = schedule[i];
+      if (!row['시작시간'] || !row['종료시간']) continue;
+
+      const startSec = timeStringToSec(row['시작시간']);
+      const endSec = timeStringToSec(row['종료시간']);
+      const allowStart = startSec - 600;
+
+      if (nowSec >= allowStart && nowSec <= endSec - 1) {
+        // 현재 수업 중이거나 시작 직전이면 허용
+        return true;
+      }
+
+      // 다음 수업 시작 전 10분 이전이며, 이전 수업은 이미 끝났다면 허용
+      const nextRow = schedule[i + 1];
+      if (nextRow) {
+        const nextStartSec = timeStringToSec(nextRow['시작시간']);
+        if (nowSec >= endSec && nowSec < nextStartSec - 600) {
+          return true;
+        }
+      }
+    }
+
+    return false;
   } catch {
     return true;
   }
 }
+
 
 // 로그 기록 및 DB 초기화: 인자로 넘긴 oldPeriod 사용
 async function clearAndLog(oldPeriod) {

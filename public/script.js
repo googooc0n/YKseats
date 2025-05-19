@@ -42,13 +42,13 @@ setInterval(updateClock, 60000);
 
 // 토큰 관리
 function getToken() {
-  return sessionStorage.getItem('token');
+  return localStorage.getItem('token');
 }
 function setToken(token) {
-  sessionStorage.setItem('token', token);
+  localStorage.setItem('token', token);
 }
 function clearToken() {
-  sessionStorage.removeItem('token');
+  localStorage.removeItem('token');
 }
 
 // 로그인 처리

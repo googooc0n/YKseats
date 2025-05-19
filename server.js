@@ -1,3 +1,9 @@
+// 환경변수로부터 키 파일 쓰기
+if (process.env.GOOGLE_CREDENTIALS_JSON) {
+  const fs = require('fs');
+  fs.writeFileSync('google-credentials.json', process.env.GOOGLE_CREDENTIALS_JSON);
+}
+
 const express = require('express');
 const bodyParser = require('body-parser');
 const xlsx = require('xlsx');
@@ -10,6 +16,9 @@ const { promisify } = require('util');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const SECRET = 'jwt-secret-key';
+
+const { downloadLog, uploadLog } = require('./googleDrive');
+const TMP_LOG = path.join(__dirname, 'temp-log.xlsx');
 
 // 데이터 디렉토리 및 파일 경로
 const DATA_DIR = path.join(__dirname, 'data');
@@ -112,8 +121,12 @@ function isReservationAllowed() {
 async function clearAndLog(oldPeriod) {
   const rows = await dbAll('SELECT id, class, seat FROM reservations');
   if (!rows.length) return;
+
   const today = new Date().toISOString().split('T')[0];
-  const logData = loadXlsx(LOG_FILE);
+
+  await downloadLog(TMP_LOG); // Google Drive에서 다운로드
+  const logData = loadXlsx(TMP_LOG);
+
   const entries = rows.map(r => ({
     id: r.id,
     date: today,
@@ -121,9 +134,13 @@ async function clearAndLog(oldPeriod) {
     class: r.class,
     seat: r.seat
   }));
-  saveXlsx(LOG_FILE, logData.concat(entries));
+
+  saveXlsx(TMP_LOG, logData.concat(entries)); // temp에 저장
+  await uploadLog(TMP_LOG);                   // Google Drive로 업로드
+
   await dbRun('DELETE FROM reservations');
 }
+
 
 // JWT 검증
 function verifyToken(req) {
@@ -247,17 +264,6 @@ app.post('/api/cancel', requireToken, async (req, res) => {
 
   await dbRun('DELETE FROM reservations WHERE id = ? AND class = ?', [req.user.id, cls]);
   res.json({ success: true });
-});
-
-
-app.get('/api/download-log', (req, res) => {
-  const filePath = path.join(__dirname, 'data', 'log.xlsx');
-  res.download(filePath, 'log.xlsx', err => {
-    if (err) {
-      console.error('Log download error:', err);
-      res.status(500).send('다운로드 중 오류 발생');
-    }
-  });
 });
 
 app.listen(PORT, () => console.log(`✅ 서버 실행: http://localhost:${PORT}`));
